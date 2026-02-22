@@ -412,7 +412,7 @@ class UI {
         </div>`}`;
   }
 
-  /* ---- Lesson Detail (Files + Preview) ---- */
+  /* ---- Lesson Detail (Files + Links + Preview) ---- */
   renderLessonDetail(folder, topic, lesson, files, previewFileId) {
     const bc = this.renderBreadcrumb([
       { label: 'Übersicht', nav: 'dashboard' },
@@ -520,6 +520,18 @@ class UI {
       </div>
 
       <div class="file-list" id="fileList">${fileListHTML}</div>
+
+      <div class="links-section">
+        <div class="links-section-header">
+          <span class="links-section-title">Links</span>
+          <button class="btn btn-secondary btn-sm" id="addLinkBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Link hinzufügen
+          </button>
+        </div>
+        <div class="link-list">${this._renderLinks(lesson.links || [])}</div>
+      </div>
+
       ${previewHTML}`;
   }
 
@@ -581,6 +593,34 @@ class UI {
     `;
   }
 
+  /* ---- Links ---- */
+  _renderLinks(links) {
+    if (!links.length) {
+      return `<div class="empty-state" style="padding:1.25rem 1rem">
+        <span style="font-size:1.5rem;opacity:0.5">🔗</span>
+        <p style="font-size:0.85rem;margin-top:0.3rem;color:var(--text-muted)">Noch keine Links hinzugefügt</p>
+      </div>`;
+    }
+    return links.map(l => `
+      <div class="link-item">
+        <div class="link-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </div>
+        <div class="link-info">
+          <div class="link-title">${this._esc(l.title || l.url)}</div>
+          <div class="link-url">${this._esc(l.url)}</div>
+        </div>
+        <div class="link-actions">
+          <a class="link-action-btn" href="${this._esc(l.url)}" target="_blank" rel="noopener noreferrer" title="Öffnen" onclick="event.stopPropagation()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          <button class="link-action-btn danger delete-link-btn" data-link-id="${l.id}" title="Löschen">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+        </div>
+      </div>`).join('');
+  }
+
   /* ---- Toast ---- */
   showToast(message, type = 'success') {
     const icons = { success: '✓', error: '✕', info: 'ℹ' };
@@ -636,6 +676,7 @@ class App {
     this._editingTopicId = null;
     this._editingLessonId = null;
     this._confirmCallback = null;
+    this._linkLessonId = null;
     // Caches
     this._topicCounts = {};   // folderId -> topic count
     this._lessonCounts = {};  // topicId -> lesson count
@@ -886,6 +927,14 @@ class App {
       if (e.key === 'Enter') this._saveLesson();
     });
 
+    // Link modal
+    document.getElementById('linkModalClose').addEventListener('click', () => this._closeLinkModal());
+    document.getElementById('linkModalCancel').addEventListener('click', () => this._closeLinkModal());
+    document.getElementById('linkModalSave').addEventListener('click', () => this._saveLink());
+    document.getElementById('linkUrlInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this._saveLink();
+    });
+
     // Confirm modal
     document.getElementById('confirmModalClose').addEventListener('click', () => this._closeConfirmModal());
     document.getElementById('confirmModalCancel').addEventListener('click', () => this._closeConfirmModal());
@@ -917,12 +966,13 @@ class App {
     });
 
     // Close modals on overlay
-    ['folderModal', 'topicModal', 'lessonModal', 'confirmModal'].forEach(id => {
+    ['folderModal', 'topicModal', 'lessonModal', 'linkModal', 'confirmModal'].forEach(id => {
       document.getElementById(id).addEventListener('click', (e) => {
         if (e.target === e.currentTarget) {
           if (id === 'folderModal') this._closeFolderModal();
           else if (id === 'topicModal') this._closeTopicModal();
           else if (id === 'lessonModal') this._closeLessonModal();
+          else if (id === 'linkModal') this._closeLinkModal();
           else this._closeConfirmModal();
         }
       });
@@ -934,6 +984,7 @@ class App {
         this._closeFolderModal();
         this._closeTopicModal();
         this._closeLessonModal();
+        this._closeLinkModal();
         this._closeConfirmModal();
       }
     });
@@ -1141,6 +1192,18 @@ class App {
     // Close preview
     const closePreview = document.getElementById('closePreview');
     if (closePreview) closePreview.addEventListener('click', () => this.store.set('previewFileId', null));
+
+    // Add link button
+    const addLinkBtn = document.getElementById('addLinkBtn');
+    if (addLinkBtn) addLinkBtn.addEventListener('click', () => this._openLinkModal());
+
+    // Delete link buttons
+    main.querySelectorAll('.delete-link-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._deleteLink(Number(btn.dataset.linkId));
+      });
+    });
 
     // Sidebar folder clicks
     this.ui.sidebarFolders.querySelectorAll('.sidebar-folder-btn').forEach(btn => {
@@ -1406,6 +1469,49 @@ class App {
     this._closeLessonModal();
     await this._loadAll();
     this.store._notify();
+  }
+
+  /* ===== Link Modal ===== */
+  _openLinkModal() {
+    this._linkLessonId = this.store.get('currentLessonId');
+    document.getElementById('linkTitleInput').value = '';
+    document.getElementById('linkUrlInput').value = '';
+    document.getElementById('linkModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('linkUrlInput').focus(), 100);
+  }
+
+  _closeLinkModal() {
+    document.getElementById('linkModal').classList.add('hidden');
+    this._linkLessonId = null;
+  }
+
+  async _saveLink() {
+    const titleVal = document.getElementById('linkTitleInput').value.trim();
+    const urlVal = document.getElementById('linkUrlInput').value.trim();
+    if (!urlVal) { this.ui.showToast('Bitte eine URL eingeben', 'error'); return; }
+    try { new URL(urlVal); } catch { this.ui.showToast('Ungültige URL', 'error'); return; }
+
+    const lesson = this._allLessons.find(l => l.id === this._linkLessonId);
+    if (!lesson) return;
+    if (!lesson.links) lesson.links = [];
+    lesson.links.push({ id: Date.now(), title: titleVal || urlVal, url: urlVal, addedAt: Date.now() });
+
+    await this.db.updateLesson(lesson);
+    this._closeLinkModal();
+    await this._loadAll();
+    this.store._notify();
+    this.ui.showToast('Link hinzugefügt', 'success');
+  }
+
+  async _deleteLink(linkId) {
+    const lessonId = this.store.get('currentLessonId');
+    const lesson = this._allLessons.find(l => l.id === lessonId);
+    if (!lesson || !lesson.links) return;
+    lesson.links = lesson.links.filter(l => l.id !== linkId);
+    await this.db.updateLesson(lesson);
+    await this._loadAll();
+    this.store._notify();
+    this.ui.showToast('Link gelöscht', 'success');
   }
 
   /* ===== Confirm Modal ===== */
