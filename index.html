@@ -25,7 +25,7 @@
         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" id="searchInput" class="search-input" placeholder="Themen und Dateien durchsuchen…">
+        <input type="text" id="searchInput" class="search-input" placeholder="Ordner, Themen, Stunden und Dateien durchsuchen…">
         <button class="search-clear hidden" id="searchClear" aria-label="Suche leeren">✕</button>
       </div>
     </div>
@@ -51,14 +51,14 @@
         </button>
         <div class="sidebar-divider"></div>
         <div class="sidebar-section-header">
-          <span>Themen</span>
-          <button class="sidebar-add-btn" id="addTopicBtnSidebar" aria-label="Neues Thema">
+          <span>Ordner</span>
+          <button class="sidebar-add-btn" id="addFolderBtnSidebar" aria-label="Neuer Ordner">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
           </button>
         </div>
-        <div class="sidebar-topics" id="sidebarTopics">
+        <div class="sidebar-folders" id="sidebarFolders">
           <!-- Dynamisch gefüllt -->
         </div>
       </nav>
@@ -68,6 +68,39 @@
     <main class="main" id="mainContent">
       <!-- Wird dynamisch gefüllt -->
     </main>
+  </div>
+
+  <!-- Modal: Ordner erstellen/bearbeiten -->
+  <div class="modal-overlay hidden" id="folderModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="folderModalTitle">Neuen Ordner erstellen</h2>
+        <button class="modal-close" id="folderModalClose" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="folderNameInput">Name des Ordners</label>
+          <input type="text" id="folderNameInput" class="form-input" placeholder="z.B. Klasse 10a, Klasse 11b…" maxlength="50" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Farbe wählen</label>
+          <div class="color-picker" id="folderColorPicker">
+            <button class="color-swatch selected" data-color="#e63946" style="background:#e63946" aria-label="Rot"></button>
+            <button class="color-swatch" data-color="#f4a261" style="background:#f4a261" aria-label="Orange"></button>
+            <button class="color-swatch" data-color="#2a9d8f" style="background:#2a9d8f" aria-label="Teal"></button>
+            <button class="color-swatch" data-color="#264653" style="background:#264653" aria-label="Dunkelblau"></button>
+            <button class="color-swatch" data-color="#6c5ce7" style="background:#6c5ce7" aria-label="Lila"></button>
+            <button class="color-swatch" data-color="#00b894" style="background:#00b894" aria-label="Grün"></button>
+            <button class="color-swatch" data-color="#fd79a8" style="background:#fd79a8" aria-label="Pink"></button>
+            <button class="color-swatch" data-color="#0984e3" style="background:#0984e3" aria-label="Blau"></button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="folderModalCancel">Abbrechen</button>
+        <button class="btn btn-primary" id="folderModalSave">Speichern</button>
+      </div>
+    </div>
   </div>
 
   <!-- Modal: Thema erstellen/bearbeiten -->
@@ -82,23 +115,38 @@
           <label for="topicNameInput">Name des Themas</label>
           <input type="text" id="topicNameInput" class="form-input" placeholder="z.B. Grammatik, Vokabeln…" maxlength="50" autocomplete="off">
         </div>
-        <div class="form-group">
-          <label>Farbe wählen</label>
-          <div class="color-picker" id="colorPicker">
-            <button class="color-swatch selected" data-color="#e63946" style="background:#e63946" aria-label="Rot"></button>
-            <button class="color-swatch" data-color="#f4a261" style="background:#f4a261" aria-label="Orange"></button>
-            <button class="color-swatch" data-color="#2a9d8f" style="background:#2a9d8f" aria-label="Teal"></button>
-            <button class="color-swatch" data-color="#264653" style="background:#264653" aria-label="Dunkelblau"></button>
-            <button class="color-swatch" data-color="#6c5ce7" style="background:#6c5ce7" aria-label="Lila"></button>
-            <button class="color-swatch" data-color="#00b894" style="background:#00b894" aria-label="Grün"></button>
-            <button class="color-swatch" data-color="#fd79a8" style="background:#fd79a8" aria-label="Pink"></button>
-            <button class="color-swatch" data-color="#0984e3" style="background:#0984e3" aria-label="Blau"></button>
-          </div>
-        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" id="topicModalCancel">Abbrechen</button>
         <button class="btn btn-primary" id="topicModalSave">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Stunde erstellen/bearbeiten -->
+  <div class="modal-overlay hidden" id="lessonModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="lessonModalTitle">Neue Stunde erstellen</h2>
+        <button class="modal-close" id="lessonModalClose" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="lessonTitleInput">Titel der Stunde</label>
+          <input type="text" id="lessonTitleInput" class="form-input" placeholder="z.B. Stunde 1: Präteritum…" maxlength="100" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="lessonDateInput">Datum</label>
+          <input type="date" id="lessonDateInput" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="lessonDescInput">Beschreibung (optional)</label>
+          <textarea id="lessonDescInput" class="form-input form-textarea" placeholder="Kurze Beschreibung der Stunde…" rows="3" maxlength="500"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="lessonModalCancel">Abbrechen</button>
+        <button class="btn btn-primary" id="lessonModalSave">Speichern</button>
       </div>
     </div>
   </div>

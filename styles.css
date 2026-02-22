@@ -340,10 +340,15 @@ body {
   color: var(--accent);
 }
 
-.sidebar-topic {
+/* ===== Sidebar Folders (Collapsible) ===== */
+.sidebar-folder {
+  margin-bottom: 0.15rem;
+}
+
+.sidebar-folder-btn {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.5rem;
   width: 100%;
   padding: 0.5rem 0.75rem;
   background: none;
@@ -351,6 +356,71 @@ body {
   border-radius: 8px;
   color: var(--text-secondary);
   font-size: 0.875rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+.sidebar-folder-btn:hover {
+  background: var(--sidebar-hover);
+  color: var(--text-primary);
+}
+.sidebar-folder-btn.active {
+  background: var(--sidebar-active);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sidebar-folder-chevron {
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.sidebar-folder-chevron.open {
+  transform: rotate(90deg);
+}
+
+.sidebar-folder-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sidebar-folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-folder-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 0.1rem 0.45rem;
+  border-radius: 10px;
+}
+
+.sidebar-folder-topics {
+  padding-left: 1.25rem;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.3s ease;
+}
+.sidebar-folder-topics.open {
+  max-height: 500px;
+}
+
+.sidebar-topic {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.825rem;
   cursor: pointer;
   text-align: left;
   transition: all 0.2s;
@@ -366,9 +436,10 @@ body {
 }
 
 .sidebar-topic-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  background: var(--text-muted);
   flex-shrink: 0;
 }
 
@@ -380,11 +451,52 @@ body {
 }
 
 .sidebar-topic-count {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
   background: var(--bg-tertiary);
-  padding: 0.1rem 0.45rem;
+  padding: 0.1rem 0.4rem;
   border-radius: 10px;
+}
+
+/* ===== Breadcrumb ===== */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.breadcrumb-item:hover {
+  color: var(--accent);
+  background: var(--accent-light);
+}
+.breadcrumb-item.current {
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: default;
+}
+.breadcrumb-item.current:hover {
+  background: none;
+  color: var(--text-primary);
+}
+
+.breadcrumb-sep {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  user-select: none;
 }
 
 /* ===== Main Content ===== */
@@ -418,7 +530,7 @@ body {
   gap: 1rem;
 }
 
-/* ===== Topic Card ===== */
+/* ===== Topic Card (reused for folders and topics) ===== */
 .topic-card {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -499,7 +611,7 @@ body {
   gap: 0.3rem;
 }
 
-/* ===== Add Topic Card ===== */
+/* ===== Add Card (dashed border) ===== */
 .add-topic-card {
   background: var(--bg-secondary);
   border: 2px dashed var(--border-color);
@@ -533,7 +645,7 @@ body {
   font-weight: 500;
 }
 
-/* ===== Topic Detail View ===== */
+/* ===== View Detail Header ===== */
 .topic-detail-header {
   display: flex;
   align-items: center;
@@ -547,22 +659,6 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-
-.topic-detail-back {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0.4rem;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  transition: all 0.2s;
-}
-.topic-detail-back:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
 }
 
 .topic-detail-title {
@@ -580,6 +676,124 @@ body {
 .topic-detail-right {
   display: flex;
   gap: 0.5rem;
+}
+
+/* ===== Stundenplan / Sequence Table ===== */
+.sequence-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+.sequence-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.sequence-table thead th {
+  text-align: left;
+  padding: 0.65rem 0.85rem;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.sequence-table tbody tr {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.sequence-table tbody tr:hover {
+  background: var(--sidebar-hover);
+}
+.sequence-table tbody tr:nth-child(even) {
+  background: var(--bg-secondary);
+}
+.sequence-table tbody tr:nth-child(even):hover {
+  background: var(--sidebar-hover);
+}
+
+.sequence-table tbody td {
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.sequence-table .col-num {
+  width: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.sequence-table .col-title {
+  font-weight: 500;
+}
+
+.sequence-table .col-date {
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.sequence-table .col-files {
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.sequence-table .col-actions {
+  width: 80px;
+  text-align: right;
+}
+
+.table-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+.table-action-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.table-action-btn.danger:hover {
+  color: var(--danger);
+}
+
+/* ===== Lesson Detail Info ===== */
+.lesson-info {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.lesson-info-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+.lesson-info-row:last-child {
+  margin-bottom: 0;
+}
+
+.lesson-info-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 90px;
+}
+
+.lesson-info-value {
+  color: var(--text-primary);
 }
 
 /* ===== Drop Zone ===== */
@@ -898,6 +1112,11 @@ body {
   box-shadow: 0 0 0 3px var(--accent-light);
 }
 
+.form-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
 /* ===== Color Picker ===== */
 .color-picker {
   display: flex;
@@ -1043,6 +1262,15 @@ body {
   .topic-detail-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .sequence-table {
+    font-size: 0.825rem;
+  }
+
+  .sequence-table thead th,
+  .sequence-table tbody td {
+    padding: 0.5rem 0.6rem;
   }
 }
 
