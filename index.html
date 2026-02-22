@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spanisch Unterricht — Dateiverwaltung</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Seitenleiste umschalten">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <h1 class="header-title">
+        <span class="header-icon">🇪🇸</span> Spanisch Unterricht
+      </h1>
+    </div>
+    <div class="header-center">
+      <div class="search-box">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Themen und Dateien durchsuchen…">
+        <button class="search-clear hidden" id="searchClear" aria-label="Suche leeren">✕</button>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" id="themeToggle" aria-label="Design umschalten">
+        <span class="theme-toggle-icon sun">☀️</span>
+        <span class="theme-toggle-icon moon">🌙</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Layout -->
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-nav">
+        <button class="sidebar-item active" data-view="dashboard" id="navDashboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+          </svg>
+          <span>Übersicht</span>
+        </button>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section-header">
+          <span>Themen</span>
+          <button class="sidebar-add-btn" id="addTopicBtnSidebar" aria-label="Neues Thema">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="sidebar-topics" id="sidebarTopics">
+          <!-- Dynamisch gefüllt -->
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Hauptbereich -->
+    <main class="main" id="mainContent">
+      <!-- Wird dynamisch gefüllt -->
+    </main>
+  </div>
+
+  <!-- Modal: Thema erstellen/bearbeiten -->
+  <div class="modal-overlay hidden" id="topicModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="topicModalTitle">Neues Thema erstellen</h2>
+        <button class="modal-close" id="topicModalClose" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="topicNameInput">Name des Themas</label>
+          <input type="text" id="topicNameInput" class="form-input" placeholder="z.B. Grammatik, Vokabeln…" maxlength="50" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Farbe wählen</label>
+          <div class="color-picker" id="colorPicker">
+            <button class="color-swatch selected" data-color="#e63946" style="background:#e63946" aria-label="Rot"></button>
+            <button class="color-swatch" data-color="#f4a261" style="background:#f4a261" aria-label="Orange"></button>
+            <button class="color-swatch" data-color="#2a9d8f" style="background:#2a9d8f" aria-label="Teal"></button>
+            <button class="color-swatch" data-color="#264653" style="background:#264653" aria-label="Dunkelblau"></button>
+            <button class="color-swatch" data-color="#6c5ce7" style="background:#6c5ce7" aria-label="Lila"></button>
+            <button class="color-swatch" data-color="#00b894" style="background:#00b894" aria-label="Grün"></button>
+            <button class="color-swatch" data-color="#fd79a8" style="background:#fd79a8" aria-label="Pink"></button>
+            <button class="color-swatch" data-color="#0984e3" style="background:#0984e3" aria-label="Blau"></button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="topicModalCancel">Abbrechen</button>
+        <button class="btn btn-primary" id="topicModalSave">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Löschen bestätigen -->
+  <div class="modal-overlay hidden" id="confirmModal">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2 class="modal-title" id="confirmModalTitle">Löschen bestätigen</h2>
+        <button class="modal-close" id="confirmModalClose" aria-label="Schließen">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmModalMessage">Möchten Sie dieses Element wirklich löschen?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="confirmModalCancel">Abbrechen</button>
+        <button class="btn btn-danger" id="confirmModalConfirm">Löschen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
