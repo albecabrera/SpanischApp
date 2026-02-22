@@ -105,6 +105,7 @@ class DB {
   getFiles() { return this._req(this._tx('files'), 'getAll'); }
   getFile(id) { return this._req(this._tx('files'), 'get', id); }
   getFilesByLesson(lessonId) { return this._getByIndex('files', 'by-lesson', lessonId); }
+  updateFile(f) { return this._req(this._tx('files', 'readwrite'), 'put', f); }
   deleteFile(id) { return this._req(this._tx('files', 'readwrite'), 'delete', id); }
 
   /* -- Cascading deletes -- */
@@ -172,6 +173,7 @@ class UI {
     this.sidebarFolders = document.getElementById('sidebarFolders');
     this.toastContainer = document.getElementById('toastContainer');
     this._blobUrls = [];
+    this._pendingDocxHtml = undefined;
   }
 
   /* ---- Sidebar ---- */
@@ -413,7 +415,7 @@ class UI {
   }
 
   /* ---- Lesson Detail (Files + Links + Preview) ---- */
-  renderLessonDetail(folder, topic, lesson, files, previewFileId) {
+  renderLessonDetail(folder, topic, lesson, files, previewData = null) {
     const bc = this.renderBreadcrumb([
       { label: 'Übersicht', nav: 'dashboard' },
       { label: folder.name, nav: 'folder', id: folder.id },
@@ -439,9 +441,12 @@ class UI {
       </div>`;
 
     // File list
+    const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     const fileListHTML = files.length ? files.map(f => {
       const isPdf = f.type === 'application/pdf';
-      const ext = isPdf ? 'PDF' : 'DOC';
+      const isDocx = f.type === DOCX_TYPE;
+      const canPreview = isPdf || isDocx;
+      const ext = isPdf ? 'PDF' : (isDocx ? 'DOCX' : 'DOC');
       const iconClass = isPdf ? 'pdf' : 'word';
       return `
         <div class="file-item" data-file-id="${f.id}">
@@ -451,9 +456,12 @@ class UI {
             <div class="file-meta">${this._formatSize(f.size)} · ${this._formatDate(f.uploadedAt)}</div>
           </div>
           <div class="file-actions">
-            ${isPdf ? `<button class="file-action-btn preview-file-btn" data-file-id="${f.id}" title="Vorschau">
+            ${canPreview ? `<button class="file-action-btn preview-file-btn" data-file-id="${f.id}" title="Vorschau">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>` : ''}
+            <button class="file-action-btn rename-file-btn" data-file-id="${f.id}" title="Umbenennen">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
             <button class="file-action-btn download-file-btn" data-file-id="${f.id}" title="Herunterladen">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
@@ -471,22 +479,48 @@ class UI {
 
     // Preview
     let previewHTML = '';
-    if (previewFileId) {
-      const f = files.find(file => file.id === previewFileId);
-      if (f && f.type === 'application/pdf') {
-        this._revokeBlobUrls();
-        const url = URL.createObjectURL(f.blob);
-        this._blobUrls.push(url);
+    if (previewData) {
+      const { type, name, fileId } = previewData;
+      const headerBtns = `
+        <div class="file-preview-actions">
+          <button class="file-action-btn rename-file-btn" data-file-id="${fileId}" title="Umbenennen">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="file-action-btn danger delete-file-btn" data-file-id="${fileId}" title="Löschen">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+          <button class="file-preview-close" id="closePreview" title="Schließen">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>`;
+      if (type === 'pdf') {
         previewHTML = `
           <div class="file-preview">
             <div class="file-preview-header">
-              <span class="file-preview-title">${this._esc(f.name)}</span>
-              <button class="file-preview-close" id="closePreview" title="Vorschau schließen">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
+              <span class="file-preview-title">${this._esc(name)}</span>
+              ${headerBtns}
             </div>
-            <div class="file-preview-body">
-              <iframe src="${url}"></iframe>
+            <div class="file-preview-body"><iframe src="${previewData.url}"></iframe></div>
+          </div>`;
+      } else if (type === 'docx') {
+        this._pendingDocxHtml = previewData.html;
+        previewHTML = `
+          <div class="file-preview">
+            <div class="file-preview-header">
+              <span class="file-preview-title">${this._esc(name)}</span>
+              ${headerBtns}
+            </div>
+            <div class="file-preview-body"><iframe id="docxPreviewFrame" sandbox="allow-same-origin"></iframe></div>
+          </div>`;
+      } else if (type === 'error') {
+        previewHTML = `
+          <div class="file-preview">
+            <div class="file-preview-header">
+              <span class="file-preview-title">${this._esc(name)}</span>
+              ${headerBtns}
+            </div>
+            <div class="file-preview-body" style="display:flex;align-items:center;justify-content:center;">
+              <p style="color:var(--text-muted)">Vorschau nicht verfügbar. Bitte herunterladen.</p>
             </div>
           </div>`;
       }
@@ -677,6 +711,7 @@ class App {
     this._editingLessonId = null;
     this._confirmCallback = null;
     this._linkLessonId = null;
+    this._renamingFileId = null;
     // Caches
     this._topicCounts = {};   // folderId -> topic count
     this._lessonCounts = {};  // topicId -> lesson count
@@ -754,7 +789,7 @@ class App {
   }
 
   /* ===== Rendering ===== */
-  _render() {
+  async _render() {
     const s = this.store.state;
 
     // Sidebar
@@ -765,7 +800,7 @@ class App {
     if (s.searchQuery) {
       this._renderSearch(s.searchQuery);
     } else if (s.currentLessonId) {
-      this._renderLessonView();
+      await this._renderLessonView();
     } else if (s.currentTopicId) {
       this._renderTopicView();
     } else if (s.currentFolderId) {
@@ -793,7 +828,7 @@ class App {
     this.ui.renderTopicDetail(folder, topic, lessons, this._fileCounts);
   }
 
-  _renderLessonView() {
+  async _renderLessonView() {
     const lesson = this._allLessons.find(l => l.id === this.store.get('currentLessonId'));
     if (!lesson) { this._navigateDashboard(); return; }
     const topic = this._allTopics.find(t => t.id === lesson.topicId);
@@ -802,7 +837,32 @@ class App {
     if (!folder) { this._navigateDashboard(); return; }
     const files = this._allFiles.filter(f => f.lessonId === lesson.id);
     files.sort((a, b) => b.uploadedAt - a.uploadedAt);
-    this.ui.renderLessonDetail(folder, topic, lesson, files, this.store.get('previewFileId'));
+
+    // Prepare preview data (async for DOCX conversion)
+    let previewData = null;
+    const previewFileId = this.store.get('previewFileId');
+    if (previewFileId) {
+      const pf = files.find(f => f.id === previewFileId) || await this.db.getFile(previewFileId);
+      if (pf) {
+        this.ui._revokeBlobUrls();
+        if (pf.type === 'application/pdf') {
+          const url = URL.createObjectURL(pf.blob);
+          this.ui._blobUrls.push(url);
+          previewData = { type: 'pdf', url, name: pf.name, fileId: pf.id };
+        } else if (pf.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+          try {
+            const arrayBuffer = await pf.blob.arrayBuffer();
+            const result = await mammoth.convertToHtml({ arrayBuffer });
+            previewData = { type: 'docx', html: result.value, name: pf.name, fileId: pf.id };
+          } catch (err) {
+            console.error('DOCX preview failed:', err);
+            previewData = { type: 'error', name: pf.name, fileId: pf.id };
+          }
+        }
+      }
+    }
+
+    this.ui.renderLessonDetail(folder, topic, lesson, files, previewData);
     this._bindDropZone();
   }
 
@@ -927,6 +987,14 @@ class App {
       if (e.key === 'Enter') this._saveLesson();
     });
 
+    // File rename modal
+    document.getElementById('fileRenameModalClose').addEventListener('click', () => this._closeFileRenameModal());
+    document.getElementById('fileRenameModalCancel').addEventListener('click', () => this._closeFileRenameModal());
+    document.getElementById('fileRenameModalSave').addEventListener('click', () => this._saveFileRename());
+    document.getElementById('fileRenameInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this._saveFileRename();
+    });
+
     // Link modal
     document.getElementById('linkModalClose').addEventListener('click', () => this._closeLinkModal());
     document.getElementById('linkModalCancel').addEventListener('click', () => this._closeLinkModal());
@@ -966,13 +1034,14 @@ class App {
     });
 
     // Close modals on overlay
-    ['folderModal', 'topicModal', 'lessonModal', 'linkModal', 'confirmModal'].forEach(id => {
+    ['folderModal', 'topicModal', 'lessonModal', 'linkModal', 'fileRenameModal', 'confirmModal'].forEach(id => {
       document.getElementById(id).addEventListener('click', (e) => {
         if (e.target === e.currentTarget) {
           if (id === 'folderModal') this._closeFolderModal();
           else if (id === 'topicModal') this._closeTopicModal();
           else if (id === 'lessonModal') this._closeLessonModal();
           else if (id === 'linkModal') this._closeLinkModal();
+          else if (id === 'fileRenameModal') this._closeFileRenameModal();
           else this._closeConfirmModal();
         }
       });
@@ -985,6 +1054,7 @@ class App {
         this._closeTopicModal();
         this._closeLessonModal();
         this._closeLinkModal();
+        this._closeFileRenameModal();
         this._closeConfirmModal();
       }
     });
@@ -1176,7 +1246,8 @@ class App {
         const file = this._allFiles.find(f => f.id === id) || await this.db.getFile(id);
         if (!file) return;
 
-        if (file.type === 'application/pdf') {
+        const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        if (file.type === 'application/pdf' || file.type === DOCX) {
           this.store.set('previewFileId', id);
         } else {
           const url = URL.createObjectURL(file.blob);
@@ -1192,6 +1263,35 @@ class App {
     // Close preview
     const closePreview = document.getElementById('closePreview');
     if (closePreview) closePreview.addEventListener('click', () => this.store.set('previewFileId', null));
+
+    // Inject DOCX preview content
+    const docxFrame = document.getElementById('docxPreviewFrame');
+    if (docxFrame && this.ui._pendingDocxHtml !== undefined) {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const bg = isDark ? '#1a1a2e' : '#ffffff';
+      const fg = isDark ? '#e2e8f0' : '#1a1a2e';
+      const bdr = isDark ? '#2d2d44' : '#dee2e6';
+      const tbl = isDark ? '#252540' : '#f8f9fa';
+      docxFrame.srcdoc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:2rem 3rem;background:${bg};color:${fg};line-height:1.7;max-width:860px;margin:0 auto}
+        *{max-width:100%;box-sizing:border-box}
+        h1,h2,h3,h4,h5,h6{margin:1.25rem 0 0.5rem;font-weight:600}
+        p{margin:0.5rem 0} ul,ol{padding-left:1.5rem;margin:0.5rem 0}
+        table{border-collapse:collapse;width:100%;margin:1rem 0}
+        td,th{border:1px solid ${bdr};padding:0.5rem 0.75rem}
+        th{background:${tbl};font-weight:600}
+        img{max-width:100%;height:auto} strong{font-weight:600}
+      </style></head><body>${this.ui._pendingDocxHtml}</body></html>`;
+      this.ui._pendingDocxHtml = undefined;
+    }
+
+    // Rename file buttons
+    main.querySelectorAll('.rename-file-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._openFileRenameModal(Number(btn.dataset.fileId));
+      });
+    });
 
     // Add link button
     const addLinkBtn = document.getElementById('addLinkBtn');
@@ -1469,6 +1569,35 @@ class App {
     this._closeLessonModal();
     await this._loadAll();
     this.store._notify();
+  }
+
+  /* ===== File Rename Modal ===== */
+  _openFileRenameModal(fileId) {
+    this._renamingFileId = fileId;
+    const file = this._allFiles.find(f => f.id === fileId);
+    if (!file) return;
+    const input = document.getElementById('fileRenameInput');
+    input.value = file.name;
+    document.getElementById('fileRenameModal').classList.remove('hidden');
+    setTimeout(() => { input.focus(); input.select(); }, 100);
+  }
+
+  _closeFileRenameModal() {
+    document.getElementById('fileRenameModal').classList.add('hidden');
+    this._renamingFileId = null;
+  }
+
+  async _saveFileRename() {
+    const newName = document.getElementById('fileRenameInput').value.trim();
+    if (!newName) { this.ui.showToast('Bitte einen Namen eingeben', 'error'); return; }
+    const file = this._allFiles.find(f => f.id === this._renamingFileId);
+    if (!file) return;
+    file.name = newName;
+    await this.db.updateFile(file);
+    this._closeFileRenameModal();
+    await this._loadAll();
+    this.store._notify();
+    this.ui.showToast('Datei umbenannt', 'success');
   }
 
   /* ===== Link Modal ===== */
